@@ -17,14 +17,14 @@ func (e RateLimitConfigError) Error() string {
 
 // Wrapper for an individual rate limit config entry which includes the defined limit and stats.
 type RateLimit struct {
-	FullKey                              string
-	Stats                                stats.RateLimitStats
-	Limit                                *pb.RateLimitResponse_RateLimit
-	Unlimited                            bool
-	ShadowMode                           bool
-	Name                                 string
-	Replaces                             []string
-	IncludeValueInMetricWhenNotSpecified bool
+	FullKey                              string                          `json:"full_key"`
+	Stats                                stats.RateLimitStats            `json:",omitempty"`
+	Limit                                *pb.RateLimitResponse_RateLimit `json:"limit"`
+	Unlimited                            bool                            `json:"unlimited"`
+	ShadowMode                           bool                            `json:"shadow_mode"`
+	Name                                 string                          `json:"name"`
+	Replaces                             []string                        `json:"replaces"`
+	IncludeValueInMetricWhenNotSpecified bool                            `json:",omitempty"`
 }
 
 // Interface for interacting with a loaded rate limit config.
@@ -41,6 +41,10 @@ type RateLimitConfig interface {
 
 	// Check if the domains is empty which corresponds to no config loaded.
 	IsEmptyDomains() bool
+
+	ListDomain() []string
+
+	GetDomainRules(domain string) *RateLimitDomainExport
 }
 
 // Information for a config file to load into the aggregate config.

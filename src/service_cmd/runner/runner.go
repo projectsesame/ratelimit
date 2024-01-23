@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"math/rand"
 	"net/http"
@@ -132,6 +133,30 @@ func (runner *Runner) Run() {
 		func(writer http.ResponseWriter, request *http.Request) {
 			if current, _ := service.GetCurrentConfig(); current != nil {
 				io.WriteString(writer, current.Dump())
+			}
+		})
+
+	srv.AddDebugHttpEndpoint(
+		"/domains",
+		"print out the domains",
+		func(writer http.ResponseWriter, request *http.Request) {
+			if current, _ := service.GetCurrentConfig(); current != nil {
+				io.WriteString(writer, strings.Join(current.ListDomain(), ","))
+			}
+		})
+
+	srv.AddDebugHttpEndpoint(
+		"/rls/rules",
+		"print out the ratelimit rules",
+		func(writer http.ResponseWriter, request *http.Request) {
+			if current, _ := service.GetCurrentConfig(); current != nil {
+				domainValue := request.URL.Query().Get("domain")
+				rules := current.GetDomainRules(domainValue)
+				marshal, err := json.Marshal(rules)
+				if err != nil {
+					return
+				}
+				io.WriteString(writer, string(marshal))
 			}
 		})
 

@@ -28,6 +28,7 @@ type YamlRateLimit struct {
 type YamlDescriptor struct {
 	Key                               string
 	Value                             string
+	Name                              string
 	RateLimit                         *YamlRateLimit `yaml:"rate_limit"`
 	Descriptors                       []YamlDescriptor
 	ShadowMode                        bool `yaml:"shadow_mode"`
@@ -47,6 +48,16 @@ type rateLimitDescriptor struct {
 
 type rateLimitDomain struct {
 	rateLimitDescriptor
+}
+
+type RateLimitDescriptorExport struct {
+	Descriptors  map[string]*RateLimitDescriptorExport `json:"descriptors"`
+	Limit        *RateLimit                            `json:"limit"`
+	WildcardKeys []string                              `json:"wildcard_keys"`
+}
+
+type RateLimitDomainExport struct {
+	RateLimitDescriptorExport
 }
 
 type rateLimitConfigImpl struct {
@@ -106,6 +117,23 @@ func (this *rateLimitDescriptor) dump() string {
 		ret += descriptor.dump()
 	}
 	return ret
+}
+
+func (this *rateLimitDescriptor) toRateLimitDescriptorExport() *RateLimitDescriptorExport {
+	if this != nil {
+
+		extDescriptor := map[string]*RateLimitDescriptorExport{}
+		for doma, descriptor := range this.descriptors {
+			extDescriptor[doma] = descriptor.toRateLimitDescriptorExport()
+		}
+		ext := &RateLimitDescriptorExport{
+			Descriptors:  extDescriptor,
+			Limit:        this.limit,
+			WildcardKeys: this.wildcardKeys,
+		}
+		return ext
+	}
+	return nil
 }
 
 // Create a new config error which includes the owning file.
@@ -276,6 +304,24 @@ func (this *rateLimitConfigImpl) Dump() string {
 	return ret
 }
 
+func (this *rateLimitConfigImpl) GetDomainRules(domain string) *RateLimitDomainExport {
+	if rlsDomain, ok := this.domains[domain]; ok {
+		descriptor := map[string]*RateLimitDescriptorExport{}
+		for k, v := range rlsDomain.descriptors {
+			descriptor[k] = v.toRateLimitDescriptorExport()
+		}
+		rlsDomain.toRateLimitDescriptorExport()
+		return &RateLimitDomainExport{
+			RateLimitDescriptorExport: RateLimitDescriptorExport{
+				Descriptors:  descriptor,
+				Limit:        rlsDomain.limit,
+				WildcardKeys: rlsDomain.wildcardKeys,
+			},
+		}
+	}
+	return nil
+}
+
 func (this *rateLimitConfigImpl) GetLimit(
 	ctx context.Context, domain string, descriptor *pb_struct.RateLimitDescriptor) *RateLimit {
 
@@ -354,6 +400,14 @@ func (this *rateLimitConfigImpl) GetLimit(
 
 func (this *rateLimitConfigImpl) IsEmptyDomains() bool {
 	return len(this.domains) == 0
+}
+
+func (this *rateLimitConfigImpl) ListDomain() []string {
+	var domains []string
+	for k, _ := range this.domains {
+		domains = append(domains, k)
+	}
+	return domains
 }
 
 func descriptorKey(domain string, descriptor *pb_struct.RateLimitDescriptor) string {
